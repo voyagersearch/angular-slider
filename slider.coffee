@@ -14,7 +14,6 @@ halfWidth       = (element) -> element[0].offsetWidth / 2
 offsetLeft      = (element) -> element[0].offsetLeft
 width           = (element) -> element[0].offsetWidth
 gap             = (element1, element2) -> offsetLeft(element2) - offsetLeft(element1) - width(element1)
-bindHtml        = (element, html) -> element.attr 'ng-bind-html-unsafe', html
 roundStep       = (value, precision, step, floor = 0) ->
     step ?= 1 / Math.pow(10, precision)
     remainder = (value - floor) % step
@@ -38,7 +37,7 @@ inputEvents =
 # DIRECTIVE DEFINITION
 
 sliderDirective = ($timeout) ->
-    restrict: 'EA'
+    restrict: 'E'
     scope:
         floor:       '@'
         ceiling:     '@'
@@ -47,44 +46,44 @@ sliderDirective = ($timeout) ->
         ngModel:     '=?'
         ngModelLow:  '=?'
         ngModelHigh: '=?'
-        translate:   '&'
-    template: '<span class="bar"></span><span class="bar selection"></span><span class="pointer"></span><span class="pointer"></span><span class="bubble selection"></span><span ng-bind-html-unsafe="translate({value: floor})" class="bubble limit"></span><span ng-bind-html-unsafe="translate({value: ceiling})" class="bubble limit"></span><span class="bubble"></span><span class="bubble"></span><span class="bubble"></span>'
+    template: '
+        <span class="bar"></span>
+        <span class="bar selection"></span>
+        <span class="pointer"></span>
+        <span class="pointer"></span>
+        <span class="bubble selection">Range: {{ diff }}</span>
+        <span class="bubble limit">{{ floor }}</span>
+        <span class="bubble limit">{{ ceiling }}</span>
+        <span class="bubble low">{{ ngModelLow }}</span>
+        <span class="bubble high">{{ ngModelHigh }}</span>'
     compile: (element, attributes) ->
 
         # Expand the translation function abbreviation
         attributes.$set 'translate', "#{attributes.translate}(value)" if attributes.translate
 
         # Check if it is a range slider
-        range = !attributes.ngModel? and (attributes.ngModelLow? and attributes.ngModelHigh?)
+        range = !attributes.ngModel? and attributes.ngModelLow? and attributes.ngModelHigh?
 
         # Get references to template elements
         [fullBar, selBar, minPtr, maxPtr, selBub,
-            flrBub, ceilBub, lowBub, highBub, cmbBub] = (angularize(e) for e in element.children())
+            flrBub, ceilBub, lowBub, highBub] = (angularize(e) for e in element.children())
 
         # Shorthand references to the 2 model scopes
-        refLow = if range then 'ngModelLow' else 'ngModel'
-        refHigh = 'ngModelHigh'
-
-        bindHtml selBub, "'Range: ' + translate({value: diff})"
-        bindHtml lowBub, "translate({value: #{refLow}})"
-        bindHtml highBub, "translate({value: #{refHigh}})"
-        bindHtml cmbBub, "translate({value: #{refLow}}) + ' - ' + translate({value: #{refHigh}})"
+        low = if range then 'ngModelLow' else 'ngModel'
+        high = 'ngModelHigh'
 
         # Remove range specific elements if not a range slider
         unless range
-            element.remove() for element in [selBar, maxPtr, selBub, highBub, cmbBub]
+            element.remove() for element in [selBar, maxPtr, selBub, highBub]
 
         # Scope values to watch for changes
-        watchables = [refLow, 'floor', 'ceiling']
-        watchables.push refHigh if range
+        watchables = [low, 'floor', 'ceiling']
+        watchables.push high if range
 
         post: (scope, element, attributes) ->
 
             boundToInputs = false
             ngDocument = angularize document
-            unless attributes.translate
-                scope.translate = (value) -> value.value
-
             pointerHalfWidth = barWidth = minOffset = maxOffset = minValue = maxValue = valueRange = offsetRange = undefined
 
             dimensions = ->
@@ -92,7 +91,7 @@ sliderDirective = ($timeout) ->
                 scope.precision ?= 0
                 scope.step ?= 1
                 scope[value] = roundStep(parseFloat(scope[value]), parseInt(scope.precision), parseFloat(scope.step), parseFloat(scope.floor)) for value in watchables
-                scope.diff = roundStep(scope[refHigh] - scope[refLow], parseInt(scope.precision), parseFloat(scope.step), parseFloat(scope.floor))
+                scope.diff = roundStep(scope[high] - scope[low], parseInt(scope.precision), parseFloat(scope.step), parseFloat(scope.floor))
 
                 # Commonly used measurements
                 pointerHalfWidth = halfWidth minPtr
@@ -120,17 +119,16 @@ sliderDirective = ($timeout) ->
 
                 setPointers = ->
                     offset ceilBub, pixelize(barWidth - width(ceilBub))
-                    newLowValue = percentValue scope[refLow]
+                    newLowValue = percentValue scope[low]
                     offset minPtr, percentToOffset newLowValue
                     offset lowBub, pixelize(offsetLeft(minPtr) - (halfWidth lowBub) + pointerHalfWidth)
                     if range
-                        newHighValue = percentValue scope[refHigh]
+                        newHighValue = percentValue scope[high]
                         offset maxPtr, percentToOffset newHighValue
                         offset highBub, pixelize(offsetLeft(maxPtr) - (halfWidth highBub) + pointerHalfWidth)
                         offset selBar, pixelize(offsetLeft(minPtr) + pointerHalfWidth)
                         selBar.css width: percentToOffset newHighValue - newLowValue
                         offset selBub, pixelize(offsetLeft(selBar) + halfWidth(selBar) - halfWidth(selBub))
-                        offset cmbBub, pixelize(offsetLeft(selBar) + halfWidth(selBar) - halfWidth(cmbBub))
 
                 adjustBubbles = ->
                     fitToBar lowBub
@@ -139,18 +137,6 @@ sliderDirective = ($timeout) ->
                     if range
                         fitToBar highBub
                         fitToBar selBub
-
-                        if gap(lowBub, highBub) < 10
-                            hide lowBub
-                            hide highBub
-                            fitToBar cmbBub
-                            show cmbBub
-                            bubToAdjust = cmbBub
-                        else
-                            show lowBub
-                            show highBub
-                            hide cmbBub
-                            bubToAdjust = highBub
 
                     if gap(flrBub, lowBub) < 5
                         hide flrBub
@@ -169,6 +155,7 @@ sliderDirective = ($timeout) ->
 
 
                 bindToInputEvents = (pointer, ref, events) ->
+                    currentRef = ref
                     onEnd = ->
                         currentRef = ref
                         pointer.removeClass 'active'
@@ -182,14 +169,14 @@ sliderDirective = ($timeout) ->
                         newValue = minValue + (valueRange * newPercent / 100.0)
                         if range
                             switch currentRef
-                                when refLow
-                                    if newValue > scope[refHigh]
-                                        currentRef = refHigh
+                                when low
+                                    if newValue > scope[high]
+                                        currentRef = high
                                         minPtr.removeClass 'active'
                                         maxPtr.addClass 'active'
-                                when refHigh
-                                    if newValue < scope[refLow]
-                                        currentRef = refLow
+                                when high
+                                    if newValue < scope[low]
+                                        currentRef = low
                                         maxPtr.removeClass 'active'
                                         minPtr.addClass 'active'
                         newValue = roundStep(newValue, parseInt(scope.precision), parseFloat(scope.step), parseFloat(scope.floor))
@@ -207,8 +194,8 @@ sliderDirective = ($timeout) ->
                 setBindings = ->
                     boundToInputs = true
                     bind = (method) ->
-                        bindToInputEvents minPtr, refLow, inputEvents[method]
-                        bindToInputEvents maxPtr, refHigh, inputEvents[method]
+                        bindToInputEvents minPtr, low, inputEvents[method]
+                        bindToInputEvents maxPtr, high, inputEvents[method]
                     bind(inputMethod) for inputMethod in ['touch', 'mouse']
 
                 setPointers()

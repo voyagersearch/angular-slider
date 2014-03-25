@@ -1,7 +1,4 @@
-coffee -c slider.coffee
+coffee -c *.coffee
+compass compile
 
-uglifyjs slider.js -mc > slider.min.js
-
-stylus slider.styl -c --use ./node_modules/nib -o ./
-mv slider.css slider.min.css
-stylus slider.styl --use ./node_modules/nib -o ./
+stylus *.styl -c --use ./node_modules/nib -o ./

@@ -21,6 +21,7 @@
   "readmeFilename": "README.md",
   "ignore": ["*",
     "!slider.js",
-    "!slider.scss"
+    "!slider.scss",
+    "!slider.css"
   ]
 }

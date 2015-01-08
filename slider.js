@@ -49,11 +49,10 @@
   };
 
   contain = function(value) {
-    if (value % 1 === 0) {
-      return Math.min(Math.max(0, value), 100);
-    } else {
+    if (isNaN(value)) {
       return value;
     }
+    return Math.min(Math.max(0, value), 100);
   };
 
   roundStep = function(value, precision, step, floor) {
@@ -177,7 +176,7 @@
               return offsetRange = maxOffset - minOffset;
             };
             updateDOM = function() {
-              var bindToInputEvents, percentOffset, percentToOffset, percentValue, setBindings, setPointers;
+              var bindToInputEvents, percentOffset, percentValue, pixelsToOffset, setBindings, setPointers;
               dimensions();
               percentOffset = function(offset) {
                 return contain(((offset - minOffset) / offsetRange) * 100);
@@ -185,31 +184,31 @@
               percentValue = function(value) {
                 return contain(((value - minValue) / valueRange) * 100);
               };
-              percentToOffset = function(percent) {
-                return contain(pixelize(percent * offsetRange / 100));
+              pixelsToOffset = function(percent) {
+                return pixelize(percent * offsetRange / 100);
               };
               setPointers = function() {
                 var newHighValue, newLowValue;
                 offset(ceilBub, pixelize(barWidth - width(ceilBub)));
                 newLowValue = percentValue(scope.local[low]);
-                offset(minPtr, percentToOffset(newLowValue));
+                offset(minPtr, pixelsToOffset(newLowValue));
                 offset(lowBub, pixelize(offsetLeft(minPtr) - (halfWidth(lowBub)) + handleHalfWidth));
                 offset(selection, pixelize(offsetLeft(minPtr) + handleHalfWidth));
                 switch (true) {
                   case range:
                     newHighValue = percentValue(scope.local[high]);
-                    offset(maxPtr, percentToOffset(newHighValue));
+                    offset(maxPtr, pixelsToOffset(newHighValue));
                     offset(highBub, pixelize(offsetLeft(maxPtr) - (halfWidth(highBub)) + handleHalfWidth));
                     return selection.css({
-                      width: percentToOffset(newHighValue - newLowValue)
+                      width: pixelsToOffset(newHighValue - newLowValue)
                     });
                   case attributes.highlight === 'right':
                     return selection.css({
-                      width: percentToOffset(110 - newLowValue)
+                      width: pixelsToOffset(110 - newLowValue)
                     });
                   case attributes.highlight === 'left':
                     selection.css({
-                      width: percentToOffset(newLowValue)
+                      width: pixelsToOffset(newLowValue)
                     });
                     return offset(selection, 0);
                 }

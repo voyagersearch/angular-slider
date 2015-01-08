@@ -16,9 +16,8 @@ gap           = (element1, element2) ->
   offsetLeft(element2) - offsetLeft(element1) - width(element1)
 
 contain       = (value) ->
-  if value % 1 is 0
-    Math.min Math.max(0, value), 100
-  else value
+  return value if isNaN value
+  Math.min Math.max(0, value), 100
 
 roundStep     = (value, precision, step, floor = 0) ->
   step ?= 1 / Math.pow(10, precision)
@@ -129,25 +128,25 @@ sliderDirective = ($timeout) ->
         # Translation functions
         percentOffset = (offset) -> contain ((offset - minOffset) / offsetRange) * 100
         percentValue = (value) -> contain ((value - minValue) / valueRange) * 100
-        percentToOffset = (percent) -> contain pixelize percent * offsetRange / 100
+        pixelsToOffset = (percent) -> pixelize percent * offsetRange / 100
 
         setPointers = ->
           offset ceilBub, pixelize(barWidth - width(ceilBub))
           newLowValue = percentValue scope.local[low]
-          offset minPtr, percentToOffset newLowValue
+          offset minPtr, pixelsToOffset newLowValue
           offset lowBub, pixelize(offsetLeft(minPtr) - (halfWidth lowBub) + handleHalfWidth)
           offset selection, pixelize(offsetLeft(minPtr) + handleHalfWidth)
 
           switch true
             when range
               newHighValue = percentValue scope.local[high]
-              offset maxPtr, percentToOffset newHighValue
+              offset maxPtr, pixelsToOffset newHighValue
               offset highBub, pixelize(offsetLeft(maxPtr) - (halfWidth highBub) + handleHalfWidth)
-              selection.css width: percentToOffset newHighValue - newLowValue
+              selection.css width: pixelsToOffset newHighValue - newLowValue
             when attributes.highlight is 'right'
-              selection.css width: percentToOffset 110 - newLowValue
+              selection.css width: pixelsToOffset 110 - newLowValue
             when attributes.highlight is 'left'
-              selection.css width: percentToOffset newLowValue
+              selection.css width: pixelsToOffset newLowValue
               offset selection, 0
 
         bindToInputEvents = (handle, bubble, ref, events) ->
